@@ -229,7 +229,5 @@ LibF++ is released under the MIT license.
 Publication
 ===========
 
-* Yihe Li, Gregory J. Duck, *Persistent Iterators with Value Semantics*, Programming Language Design and Implementation (PLDI), 2026
-* Preprint: [https://arxiv.org/abs/2604.14072](https://arxiv.org/abs/2604.14072)
-
+* Yihe Li, Gregory J. Duck, [Persistent Iterators with Value Semantics](https://www.comp.nus.edu.sg/~gregory/papers/pldi2026.pdf), Programming Language Design and Implementation (PLDI), 2026
 
