@@ -2078,7 +2078,7 @@ public:
 
     void insert(const T &val)
     {
-        const auto *j = INTERNAL<S>::itr_insert(i, &val, INTERNAL<S>::template tree_insert<M>);
+        const auto *j = INTERNAL<S>::itr_insert(i, &val, INTERNAL<S>::template tree_insert<T, M>);
         SWAP(j);
     }
 
