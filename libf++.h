@@ -3170,6 +3170,9 @@ public:
         using base::i;
         using base::SWAP;
 
+        void assign(const T &) = delete;
+        void insert(const T &) = delete;
+
         LIBFPP_PURE iterator operator+(ssize_t k) const
         {
             const auto *j = INTERNAL<S>::itr_add(i, k);
@@ -3426,6 +3429,9 @@ public:
         using base::iterator;
         using base::i;
         using base::SWAP;
+
+        void assign(const T &) = delete;
+        void insert(const T &) = delete;
 
         LIBFPP_PURE iterator operator+(ssize_t k) const
         {
@@ -3754,6 +3760,9 @@ public:
         using base::i;
         using base::SWAP;
 
+        void assign(const pair<K, V> &) = delete;
+        void insert(const pair<K, V> &) = delete;
+
         LIBFPP_PURE iterator operator+(ssize_t k) const
         {
             const auto *j = INTERNAL<S>::itr_add(i, k);
@@ -3998,6 +4007,9 @@ public:
         using base::iterator;
         using base::i;
         using base::SWAP;
+
+        void assign(const pair<K, V> &) = delete;
+        void insert(const pair<K, V> &) = delete;
 
         LIBFPP_PURE iterator operator+(ssize_t k) const
         {
