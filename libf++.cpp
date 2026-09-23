@@ -4274,7 +4274,7 @@ static const ITR<S, M> *itr_insert(const ITR<S, M> *i, size_t slack, const void 
         goto error;
 
     const TREE<S, M> *t = i->t, *u = nullptr;
-    if (LIBFPP_LIKELY(t->len + t->size + slack < TREE<S, M>::DATA_SIZE))
+    if (LIBFPP_LIKELY((t->len + 1) * t->size + slack < TREE<S, M>::DATA_SIZE))
     {   // FAST PATH:
         auto r = insert(i->t, nullptr, pos - i->lo, data, refcount);
         pos++;
