@@ -1974,9 +1974,10 @@ public:
     }
     iterator &operator=(const iterator &j)
     {
+        const auto *k = j.i;
+        if (LIBFPP_LIKELY(k != nullptr)) k->ref();
         if (LIBFPP_LIKELY(i != nullptr)) i->template DEREF<T>();
-        i = j.i;
-        if (LIBFPP_LIKELY(i != nullptr)) i->ref();
+        i = k;
         return *this;
     }
 
