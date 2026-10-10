@@ -308,7 +308,7 @@ struct TREE : OBJECT<S>
 {
     enum TAG : size_t
     {
-        ELEMENT = 5,
+        ELEMENT = 2,        // Must sync with SEQ::ELEMENT
         TREE_2,
         TREE_3,
     };
@@ -552,10 +552,9 @@ struct SEQ : OBJECT<S>
 {
     enum TAG : size_t
     {
-        SINGLE,
         NIL,
         DEEP,
-        ELEMENT = 5,
+        ELEMENT = 2,    // Must sync with TREE::ELEMENT
         TREE_2,
         TREE_3
     };
@@ -564,15 +563,11 @@ struct SEQ : OBJECT<S>
     size_t size:SIZE_BITS;
     size_t len:LEN_BITS;
 
-    union
+    struct
     {
-        const TREE<S, M> *t;
-        struct
-        {
-            const SEQ<S, M> *m;
-            const DIG<S, M> *l;
-            const DIG<S, M> *r; 
-        };
+        const SEQ<S, M> *m;
+        const DIG<S, M> *l;
+        const DIG<S, M> *r;
     };
 
     M monoid;
@@ -583,12 +578,6 @@ struct SEQ : OBJECT<S>
         m = reinterpret_cast<SEQ<S, M> *>(this);
         r = reinterpret_cast<DIG<S, M> *>(this);
     }
-    SEQ(const TREE<S, M> *t, const void *arg = nullptr) : tag(SINGLE), size(0), len(t->len), t(t), monoid(this, arg)
-    {
-        t->ref();
-        l = reinterpret_cast<DIG<S, M> *>(this);
-        r = reinterpret_cast<DIG<S, M> *>(this);
-    }
     SEQ(const DIG<S, M> *l, const SEQ<S, M> *m, const DIG<S, M> *r, const void *arg = nullptr) : tag(DEEP), size(0), len(l->len + m->len + r->len), m(m), l(l), r(r), monoid(this, arg)
     {
         l->ref(); m->ref(); r->ref();
@@ -596,18 +585,11 @@ struct SEQ : OBJECT<S>
 
     ~SEQ()
     {
-        switch (tag)
+        if (tag == DEEP)
         {
-            case SINGLE:
-                t->deref();
-                break;
-            case DEEP:
-                l->deref();
-                m->deref();
-                r->deref();
-                break;
-            default:
-                break;
+            l->deref();
+            m->deref();
+            r->deref();
         }
     }
     void deref() const
@@ -658,9 +640,6 @@ struct SEQ : OBJECT<S>
             return;
         switch (tag)
         {
-            case SINGLE:
-                t->template DEREF<T>();
-                break;
             case DEEP:
                 l->template DEREF<T>();
                 m->template DEREF<T>();
@@ -675,25 +654,12 @@ struct SEQ : OBJECT<S>
 
     void dump(void (*dumper)(const TREE<S, M> *, FILE *), unsigned indent, FILE *stream = stderr, void (*mdumper)(const M *, FILE *) = nullptr) const
     {
-        switch (tag)
-        {
-            case TREE<S, M>::ELEMENT: case TREE<S, M>::TREE_2: case TREE<S, M>::TREE_3:
-                reinterpret_cast<const TREE<S, M> *>(this)->dump(dumper, indent, stream, mdumper);
-                return;
-            default:
-                break;
-        }
         fputc('\n', stream);
         for (unsigned i = 0; i < indent; i++)
             fputc(' ', stream);
         switch (tag)
         {
             case NIL: fprintf(stream, "%snil%s", GREEN, OFF); return;
-            case SINGLE:
-                fprintf(stream, "%ssingle%s(", GREEN, OFF);
-                t->dump(dumper, indent+1, stream, mdumper);
-                fputc(')', stream);
-                break;
             case DEEP:
                 fprintf(stream, "%sdeep%s(", GREEN, OFF);
                 l->dump(dumper, indent+1, stream, mdumper);
@@ -703,6 +669,11 @@ struct SEQ : OBJECT<S>
                 r->dump(dumper, indent+1, stream, mdumper);
                 fputc(')', stream);
                 break;
+            case TREE<S, M>::ELEMENT: case TREE<S, M>::TREE_2: case TREE<S, M>::TREE_3:
+                fprintf(stream, "%ssingle%s(", GREEN, OFF);
+                reinterpret_cast<const TREE<S, M> *>(this)->dump(dumper, indent+1, stream, mdumper);
+                fputc(')', stream);
+                return;
         }
         if (mdumper != nullptr) mdumper(&monoid, stream);
     }
@@ -759,7 +730,6 @@ struct MIN
     template <typename S>
     MIN(const SEQ<S, MIN> *s, const void *arg = nullptr) :
         min(s->tag == SEQ<S, MIN>::NIL? nullptr:
-            s->tag == SEQ<S, MIN>::SINGLE? get_min(s->t):
             s->tag == SEQ<S, MIN>::DEEP? get_min(s->l):
             get_min(reinterpret_cast<const TREE<S, MIN> *>(s))),
         max(arg == nullptr? nullptr: init_max(s, arg))
@@ -789,7 +759,6 @@ struct MIN
         switch (s->tag)
         {
             case SEQ<S, MIN>::NIL: return nullptr;
-            case SEQ<S, MIN>::SINGLE: return get_min(s->t);
             case TREE<S, MIN>::ELEMENT: case TREE<S, MIN>::TREE_2: case TREE<S, MIN>::TREE_3:
                 return get_min(reinterpret_cast<const TREE<S, MIN> *>(s));
             case SEQ<S, MIN>::DEEP: return s->monoid.min;
@@ -810,7 +779,6 @@ struct MIN
         switch (s->tag)
         {
             case SEQ<S, MIN>::NIL: return nullptr;
-            case SEQ<S, MIN>::SINGLE: return get_max(s->t, arg);
             case TREE<S, MIN>::ELEMENT: case TREE<S, MIN>::TREE_2: case TREE<S, MIN>::TREE_3:
                 return get_max(reinterpret_cast<const TREE<S, MIN> *>(s), arg);
             case SEQ<S, MIN>::DEEP: return s->monoid.max;
@@ -844,7 +812,6 @@ struct STR
         switch (s->tag)
         {
             case SEQ<S, STR>::NIL: return 0;
-            case SEQ<S, STR>::SINGLE: return get(s->t);
             case TREE<S, STR>::ELEMENT: case TREE<S, STR>::TREE_2: case TREE<S, STR>::TREE_3:
                 return get(reinterpret_cast<const TREE<S, STR> *>(s));
             case SEQ<S, STR>::DEEP: return get(s->l) + get(s->m) + get(s->r);
@@ -888,7 +855,6 @@ struct STR
         switch (s->tag)
         {
             case SEQ<S, STR>::NIL: return 0;
-            case SEQ<S, STR>::SINGLE: return get(s->t);
             case TREE<S, STR>::ELEMENT: case TREE<S, STR>::TREE_2: case TREE<S, STR>::TREE_3:
                 return get(reinterpret_cast<const TREE<S, STR> *>(s));
             case SEQ<S, STR>::DEEP: return s->monoid.len;

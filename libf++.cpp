@@ -333,9 +333,6 @@ static void utf8_seq_print(const UTF8_SEQ<LOCAL> *s)
     switch (s->tag)
     {
         case UTF8_SEQ<LOCAL>::NIL: return;
-        case UTF8_SEQ<LOCAL>::SINGLE:
-            utf8_tree_print(s->t);
-            return;
         case UTF8_TREE<LOCAL>::ELEMENT: case UTF8_TREE<LOCAL>::TREE_2: case UTF8_TREE<LOCAL>::TREE_3:
             utf8_tree_print(reinterpret_cast<const UTF8_TREE<LOCAL> *>(s));
             return;
@@ -382,8 +379,6 @@ static LIBFPP_PURE size_t seq_depth(const SEQ<LOCAL> *s)
     switch (s->tag)
     {
         case SEQ<LOCAL>::NIL: return 0;
-        case SEQ<LOCAL>::SINGLE:
-            return 1 + tree_depth(s->t);
         case TREE<LOCAL>::ELEMENT: case TREE<LOCAL>::TREE_2: case TREE<LOCAL>::TREE_3:
             return tree_depth(reinterpret_cast<const TREE<LOCAL> *>(s));
         case SEQ<LOCAL>::DEEP:
@@ -470,10 +465,6 @@ static LIBFPP_PURE const char *seq_verify(const SEQ<LOCAL> *s, size_t size, size
             if (s->len != 0)
                 return "bad nil length";
             return nullptr;
-        case SEQ<LOCAL>::SINGLE:
-            if (s->len != s->t->len)
-                return "bad single length";
-            return tree_verify(s->t, size, level);
         case TREE<LOCAL>::ELEMENT: case TREE<LOCAL>::TREE_2: case TREE<LOCAL>::TREE_3:
             return tree_verify(reinterpret_cast<const TREE<LOCAL> *>(s), size, level);
         case SEQ<LOCAL>::DEEP:
@@ -532,7 +523,6 @@ static void *seq_write(const SEQ<LOCAL> *s, void *buf, void *(*write)(void *, co
     switch (s->tag)
     {
         case SEQ<LOCAL>::NIL:    return buf;
-        case SEQ<LOCAL>::SINGLE: return tree_write(s->t, buf, write);
         case TREE<LOCAL>::ELEMENT: case TREE<LOCAL>::TREE_2: case TREE<LOCAL>::TREE_3:
             return tree_write(reinterpret_cast<const TREE<LOCAL> *>(s), buf, write);
         case SEQ<LOCAL>::DEEP:
@@ -597,8 +587,6 @@ static LIBFPP_PURE result<const TREE<S, M> *, size_t> seq_get_2(const SEQ<S, M> 
 {
     switch (s->tag)
     {
-        case SEQ<S, M>::SINGLE:
-            return tree_get(s->t, idx);
         case TREE<S, M>::ELEMENT: case TREE<S, M>::TREE_2: case TREE<S, M>::TREE_3:
             return tree_get(reinterpret_cast<const TREE<S, M> *>(s), idx);
         case SEQ<S, M>::DEEP:
@@ -777,8 +765,6 @@ static const SEQ<S> *seq_assign(const SEQ<S> *s, AssignInfo<S> *info)
 {
     switch (s->tag)
     {
-        case SEQ<LOCAL>::SINGLE:
-            return single(tree_assign(s->t, info));
         case TREE<LOCAL>::ELEMENT: case TREE<LOCAL>::TREE_2: case TREE<LOCAL>::TREE_3:
             return single(tree_assign(reinterpret_cast<const TREE<S> *>(s), info));
         case SEQ<LOCAL>::DEEP:
@@ -812,8 +798,6 @@ static const SEQ<S, M> *seq_push_back(const SEQ<S, M> *s, const TREE<S, M> *t, c
     {
         case SEQ<S, M>::NIL:
             return single(t, arg);
-        case SEQ<S, M>::SINGLE:
-            return deep(dig(s->t, arg), nil<S, M>(), dig(t, arg), arg);
         case TREE<S, M>::ELEMENT: case TREE<S, M>::TREE_2: case TREE<S, M>::TREE_3:
             return deep(dig(reinterpret_cast<const TREE<S, M> *>(s), arg), nil<S, M>(), dig(t, arg), arg);
         case SEQ<S, M>::DEEP:
@@ -849,8 +833,6 @@ static const SEQ<S, M> *seq_replace_back(const SEQ<S, M> *s, const TREE<S, M> *t
 {
     switch (s->tag)
     {
-        case SEQ<S, M>::SINGLE:
-            return single(t, arg);
         case TREE<S, M>::ELEMENT: case TREE<S, M>::TREE_2: case TREE<S, M>::TREE_3:
             return single(t, arg);
         case SEQ<S, M>::DEEP:
@@ -890,8 +872,6 @@ static const SEQ<S, M> *seq_push_front(const SEQ<S, M> *s, const TREE<S, M> *t, 
     {
         case SEQ<S, M>::NIL:
             return single(t, arg);
-        case SEQ<S, M>::SINGLE:
-            return deep(dig(t, arg), nil<S, M>(), dig(s->t, arg), arg);
         case TREE<S, M>::ELEMENT: case TREE<S, M>::TREE_2: case TREE<S, M>::TREE_3:
             return deep(dig(t, arg), nil<S, M>(), dig(reinterpret_cast<const TREE<S, M> *>(s), arg), arg);
         case SEQ<S, M>::DEEP:
@@ -929,8 +909,6 @@ static const SEQ<S, M> *seq_replace_front(const SEQ<S, M> *s, const TREE<S, M> *
 {
     switch (s->tag)
     {
-        case SEQ<S, M>::SINGLE:
-            return single(t, arg);
         case TREE<S, M>::ELEMENT: case TREE<S, M>::TREE_2: case TREE<S, M>::TREE_3:
             return single(t, arg);
         case SEQ<S, M>::DEEP:
@@ -968,8 +946,6 @@ static result<const SEQ<S, M> *, const TREE<S, M> *> seq_pop_back(const SEQ<S, M
 {
     switch (s->tag)
     {
-        case SEQ<S, M>::SINGLE:
-            return {nil<S, M>(), s->t};
         case TREE<S, M>::ELEMENT: case TREE<S, M>::TREE_2: case TREE<S, M>::TREE_3:
             return {nil<S, M>(), reinterpret_cast<const TREE<S, M> *>(s)};
         case SEQ<S, M>::DEEP:
@@ -1007,8 +983,6 @@ static result<const SEQ<S, M> *, const TREE<S, M> *> seq_pop_front(const SEQ<S, 
 {
     switch (s->tag)
     {
-        case SEQ<S, M>::SINGLE:
-            return {nil<S, M>(), s->t};
         case TREE<S, M>::ELEMENT: case TREE<S, M>::TREE_2: case TREE<S, M>::TREE_3:
             return {nil<S, M>(), reinterpret_cast<const TREE<S, M> *>(s)};
         case SEQ<S, M>::DEEP:
@@ -1408,15 +1382,6 @@ static const SEQ<S, M> *seq_insert(const SEQ<S, M> *s, InsertInfo<S, M> *info)
             auto r = info->insert(nullptr, nullptr, info->idx, info->data, 0);
             return single(r.a);
         }
-        case SEQ<S, M>::SINGLE:
-            t = tree_insert(s->t, info);
-            if (t == s->t)
-            {
-                r->len = t->len;
-                r->monoid = M(r);
-                return r;
-            }
-            return (info->next != nullptr? deep(dig(t), nil<S, M>(), dig(info->next)): single(t));
         case TREE<S, M>::ELEMENT: case TREE<S, M>::TREE_2: case TREE<S, M>::TREE_3:
         {
             const TREE<S, M> *u = reinterpret_cast<const TREE<S, M> *>(s);
@@ -2132,14 +2097,6 @@ static const SEQ<S, M> *seq_erase(const SEQ<S, M> *s, EraseInfo<S, M> *info)
     info->left = false;
     switch (s->tag)
     {
-        case SEQ<S, M>::SINGLE:
-            t = tree_erase(s->t, info);
-            if (info->reduced)
-            {
-                info->orphan = t;
-                return nil<S, M>();
-            }
-            return single(t);
         case TREE<S, M>::ELEMENT: case TREE<S, M>::TREE_2: case TREE<S, M>::TREE_3:
             t = tree_erase(reinterpret_cast<const TREE<S, M> *>(s), info);
             if (info->reduced)
@@ -2458,7 +2415,7 @@ static LIBFPP_NOINLINE const SEQ<S, M> *seq_append(const SEQ<S, M> *s, const TRE
     const SEQ<S, M> *s0 = s, *t0 = t;
     switch (s->tag)
     {
-        case SEQ<S, M>::NIL: case SEQ<S, M>::SINGLE:
+        case SEQ<S, M>::NIL:
         case TREE<S, M>::ELEMENT: case TREE<S, M>::TREE_2: case TREE<S, M>::TREE_3:
             for (size_t i = 0; i < m_len; i++)
             {
@@ -2469,7 +2426,7 @@ static LIBFPP_NOINLINE const SEQ<S, M> *seq_append(const SEQ<S, M> *s, const TRE
             if (s->tag != SEQ<S, M>::NIL)
             {
                 const auto *old = t;
-                const TREE<S, M> *u = (s->tag == SEQ<S, M>::SINGLE? s->t: reinterpret_cast<const TREE<S, M> *>(s));
+                const TREE<S, M> *u = reinterpret_cast<const TREE<S, M> *>(s);
                 t = seq_push_front(t, u);
                 if (old != t0) old->gc();
                 if (s != s0) s->gc();
@@ -2479,7 +2436,7 @@ static LIBFPP_NOINLINE const SEQ<S, M> *seq_append(const SEQ<S, M> *s, const TRE
         {
             switch (t->tag)
             {
-                case SEQ<S, M>::NIL: case SEQ<S, M>::SINGLE:
+                case SEQ<S, M>::NIL:
                 case TREE<S, M>::ELEMENT: case TREE<S, M>::TREE_2: case TREE<S, M>::TREE_3:
                     for (size_t i = 0; i < m_len; i++)
                     {
@@ -2490,7 +2447,7 @@ static LIBFPP_NOINLINE const SEQ<S, M> *seq_append(const SEQ<S, M> *s, const TRE
                     if (t->tag != SEQ<S, M>::NIL)
                     {
                         const auto *old = s;
-                        const TREE<S, M> *u = (t->tag == SEQ<S, M>::SINGLE? t->t: reinterpret_cast<const TREE<S, M> *>(t));
+                        const TREE<S, M> *u = reinterpret_cast<const TREE<S, M> *>(t);
                         s = seq_push_back(s, u);
                         if (old != s0) old->gc();
                         if (t != t0) t->gc();
@@ -2623,11 +2580,6 @@ static void seq_split(const SEQ<S, M> *s, SplitInfo<S, M> *info)
 {
     switch (s->tag)
     {
-        case SEQ<S, M>::SINGLE:
-            if (info->l) info->s.l = nil<S, M>();
-            if (info->r) info->s.r = nil<S, M>();
-            info->t = s->t;
-            return;
         case TREE<S, M>::ELEMENT: case TREE<S, M>::TREE_2: case TREE<S, M>::TREE_3:
             if (info->l) info->s.l = nil<S, M>();
             if (info->r) info->s.r = nil<S, M>();
@@ -2989,8 +2941,6 @@ static const void *seq_search(const SEQ<LOCAL, MIN> *s, SearchInfo *info)
     {
         case SEQ<LOCAL, MIN>::NIL:
             return nullptr;
-        case SEQ<LOCAL, MIN>::SINGLE:
-            return tree_search(s->t, info);
         case TREE<LOCAL, MIN>::ELEMENT: case TREE<LOCAL, MIN>::TREE_2: case TREE<LOCAL, MIN>::TREE_3:
             return tree_search(reinterpret_cast<const TREE<LOCAL, MIN> *>(s), info);
         case SEQ<LOCAL, MIN>::DEEP:
@@ -3089,8 +3039,6 @@ static ssize_t seq_find(const SEQ<LOCAL, MIN> *s, FindInfo *info)
     {
         case SEQ<LOCAL, MIN>::NIL:
             return -1;
-        case SEQ<LOCAL, MIN>::SINGLE:
-            return tree_find(s->t, info);
         case TREE<LOCAL, MIN>::ELEMENT: case TREE<LOCAL, MIN>::TREE_2: case TREE<LOCAL, MIN>::TREE_3:
             return tree_find(reinterpret_cast<const TREE<LOCAL, MIN> *>(s), info);
         case SEQ<LOCAL, MIN>::DEEP:
@@ -3209,8 +3157,6 @@ static ssize_t seq_below_find(const SEQ<LOCAL, MIN> *s, FindBelowInfo *info)
     {
         case SEQ<LOCAL, MIN>::NIL:
             return -1;
-        case SEQ<LOCAL, MIN>::SINGLE:
-            return tree_below_find(s->t, info);
         case TREE<LOCAL, MIN>::ELEMENT: case TREE<LOCAL, MIN>::TREE_2: case TREE<LOCAL, MIN>::TREE_3:
             return tree_below_find(reinterpret_cast<const TREE<LOCAL, MIN> *>(s), info);
         case SEQ<LOCAL, MIN>::DEEP:
@@ -3621,13 +3567,6 @@ static const SEQ<S, MIN> *seq_insert(const SEQ<S, MIN> *s, InsertSearchInfo<S> *
             auto r = info->insert(nullptr, nullptr, info->key, 0);
             return single(r.a, max);
         }
-        case SEQ<S, MIN>::SINGLE:
-            t = tree_insert(s->t, info);
-            if (LIBFPP_LIKELY(info->fast)) goto fast;
-            if (t == nullptr) return nullptr;
-            if (info->next != nullptr)
-                return deep(dig(t, max), nil<S, MIN>(), dig(info->next, max), max);
-            return single(t, max);
         case TREE<S, MIN>::ELEMENT: case TREE<S, MIN>::TREE_2: case TREE<S, MIN>::TREE_3:
             t = tree_insert(reinterpret_cast<const TREE<S, MIN> *>(s), info);
             if (LIBFPP_LIKELY(info->fast)) return s;
@@ -3952,15 +3891,6 @@ static const SEQ<S, MIN> *seq_erase(const SEQ<S, MIN> *s, EraseSearchInfo<S> *in
     {
         case SEQ<S, MIN>::NIL:
             return s;
-        case SEQ<S, MIN>::SINGLE:
-            t = tree_erase(s->t, info);
-            if (!info->erased) return s;
-            if (info->reduced)
-            {
-                info->orphan = t;
-                return nil<S, MIN>();
-            }
-            return single(t);
         case TREE<S, MIN>::ELEMENT: case TREE<S, MIN>::TREE_2: case TREE<S, MIN>::TREE_3:
             t = tree_erase(reinterpret_cast<const TREE<S, MIN> *>(s), info);
             if (!info->erased) return s;
@@ -4118,12 +4048,6 @@ static result<const ITR<S, M> *, const OBJECT<S> *> itr_restore(const ITR<S, M> 
                 const SEQ<S, M> *s = i->s;
                 switch (s->tag)
                 {
-                    case SEQ<S, M>::SINGLE:
-                    {
-                        const TREE<S, M> *u = reinterpret_cast<const TREE<S, M> *>(obj);
-                        s = single(u, max);
-                        break;
-                    }
                     case TREE<S, M>::ELEMENT: case TREE<S, M>::TREE_2: case TREE<S, M>::TREE_3:
                         s = reinterpret_cast<const SEQ<S, M> *>(obj);
                         break;
@@ -4249,9 +4173,6 @@ static const ITR<S, M> *itr_move(const ITR<S, M> *i, const void *max = nullptr)
                 const SEQ<S, M> *s = i->s;
                 switch (s->tag)
                 {
-                    case SEQ<S, M>::SINGLE:
-                        i = S::template allocate<ITR<S, M>>(s->t, 0, lo, pos, i);
-                        continue;
                     case TREE<S, M>::ELEMENT: case TREE<S, M>::TREE_2: case TREE<S, M>::TREE_3:
                         i = S::template allocate<ITR<S, M>>(reinterpret_cast<const TREE<S, M> *>(s), 0, lo, pos, i);
                         continue;
@@ -4526,7 +4447,6 @@ static const ITR<S, M> *itr_insert(const ITR<S, M> *i, size_t slack, const void 
             const auto *s = j->s;
             switch (s->tag)
             {
-                case SEQ<S, M>::SINGLE:
                 case TREE<S, M>::ELEMENT: case TREE<S, M>::TREE_2: case TREE<S, M>::TREE_3:
                 {
                     r = insert(t, nullptr, idx, data, refcount);
@@ -4655,7 +4575,6 @@ static const ITR<S, M> *itr_insert(const ITR<S, M> *i, size_t slack, const void 
                 const auto *s = i->s;
                 switch (s->tag)
                 {
-                    case SEQ<S, M>::SINGLE:
                     case TREE<S, M>::ELEMENT: case TREE<S, M>::TREE_2: case TREE<S, M>::TREE_3:
                     {
                         s = deep(dig(t), nil<S, M>(), dig(u));
@@ -4873,7 +4792,6 @@ static const ITR<S, M> *itr_erase(const ITR<S, M> *i, result<const TREE<S, M> *,
             const auto *s = j->s;
             switch (s->tag)
             {
-                case SEQ<S, M>::SINGLE:
                 case TREE<S, M>::ELEMENT: case TREE<S, M>::TREE_2: case TREE<S, M>::TREE_3:
                     r = erase(t, nullptr, idx);
                     if (r.a != nullptr)
@@ -4956,7 +4874,6 @@ static const ITR<S, M> *itr_erase(const ITR<S, M> *i, result<const TREE<S, M> *,
                 const auto *s = j->s;
                 switch (s->tag)
                 {
-                    case SEQ<S, M>::SINGLE:
                     case TREE<S, M>::ELEMENT: case TREE<S, M>::TREE_2: case TREE<S, M>::TREE_3:
                         m = nil<S, M>();
                         break;
@@ -5166,7 +5083,6 @@ static result<const ITR<S, M> *, const ITR<S, M> *> itr_split(const ITR<S, M> *i
         const auto *s = i->s;
         switch (s->tag)
         {
-            case SEQ<S, M>::SINGLE:
             case TREE<S, M>::ELEMENT: case TREE<S, M>::TREE_2: case TREE<S, M>::TREE_3:
                 if (l) sl = nil<S, M>();
                 if (r) sr = nil<S, M>();
@@ -5593,8 +5509,6 @@ static LIBFPP_PURE char32_t utf8_seq_get(const UTF8_SEQ<LOCAL> *s, size_t idx)
     size_t len;
     switch (s->tag)
     {
-        case SEQ<LOCAL>::SINGLE:
-            return utf8_tree_get(s->t, idx);
         case TREE<LOCAL, STR>::ELEMENT: case TREE<LOCAL, STR>::TREE_2: case TREE<LOCAL, STR>::TREE_3:
             return utf8_tree_get(reinterpret_cast<const TREE<LOCAL, STR> *>(s), idx);
         case SEQ<LOCAL>::DEEP:
@@ -5626,8 +5540,6 @@ static const UTF8_SEQ<S> *utf8_push_back(const UTF8_SEQ<S> *s, const UTF8_TREE<S
     {
         case UTF8_SEQ<S>::NIL:
             return single(t);
-        case UTF8_SEQ<S>::SINGLE:
-            return deep(dig(s->t), nil<S, STR>(), dig(t));
         case UTF8_TREE<S>::ELEMENT: case UTF8_TREE<S>::TREE_2: case UTF8_TREE<S>::TREE_3:
             return deep(dig(reinterpret_cast<const UTF8_TREE<S> *>(s)), nil<S, STR>(), dig(t));
         case UTF8_SEQ<S>::DEEP:
@@ -5663,8 +5575,6 @@ static const UTF8_SEQ<S> *utf8_replace_back(const UTF8_SEQ<S> *s, const UTF8_TRE
 {
     switch (s->tag)
     {
-        case UTF8_SEQ<S>::SINGLE:
-            return single(t);
         case UTF8_TREE<S>::ELEMENT: case UTF8_TREE<S>::TREE_2: case UTF8_TREE<S>::TREE_3:
             return single(t);
         case UTF8_SEQ<S>::DEEP:
@@ -5843,8 +5753,6 @@ static const UTF8_SEQ<S> *utf8_push_front(const UTF8_SEQ<S> *s, const UTF8_TREE<
     {
         case UTF8_SEQ<S>::NIL:
             return single(t);
-        case UTF8_SEQ<S>::SINGLE:
-            return deep(dig(t), nil<S, STR>(), dig(s->t));
         case UTF8_TREE<S>::ELEMENT: case UTF8_TREE<S>::TREE_2: case UTF8_TREE<S>::TREE_3:
             return deep(dig(t), nil<S, STR>(), dig(reinterpret_cast<const UTF8_TREE<S> *>(s)));
         case UTF8_SEQ<S>::DEEP:
@@ -5882,8 +5790,6 @@ static const UTF8_SEQ<S> *utf8_replace_front(const UTF8_SEQ<S> *s, const UTF8_TR
 {
     switch (s->tag)
     {
-        case UTF8_SEQ<S>::SINGLE:
-            return single(t);
         case UTF8_TREE<S>::ELEMENT: case UTF8_TREE<S>::TREE_2: case UTF8_TREE<S>::TREE_3:
             return single(t);
         case UTF8_SEQ<S>::DEEP:
@@ -6119,7 +6025,6 @@ static LIBFPP_PURE int utf8_seq_compare(const UTF8_SEQ<S> *s, const char **cstr)
     switch (s->tag)
     {
         case UTF8_SEQ<S>::NIL:    return 0;
-        case UTF8_SEQ<S>::SINGLE: return utf8_tree_compare(s->t, cstr);
         case UTF8_TREE<S>::ELEMENT: case UTF8_TREE<S>::TREE_2: case UTF8_TREE<S>::TREE_3:
             return utf8_tree_compare(reinterpret_cast<const UTF8_TREE<S> *>(s), cstr);
         case UTF8_SEQ<S>::DEEP:
@@ -6204,8 +6109,6 @@ const void *MIN::init_max(const SEQ<S, MIN> *s, const void *arg)
     {
         case SEQ<S, MIN>::NIL:
             return nullptr;
-        case SEQ<S, MIN>::SINGLE:
-            return get_max(s->t, arg);
         case TREE<S, MIN>::ELEMENT: case TREE<S, MIN>::TREE_2: case TREE<S, MIN>::TREE_3:
             return get_max(reinterpret_cast<const TREE<S, MIN> *>(s), arg);
         case SEQ<S, MIN>::DEEP:
