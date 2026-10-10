@@ -25,6 +25,12 @@ static void check(const std::vector<int> &ref, const F::vector<int> &test)
     for (size_t i = 0; i < ref.size(); i++)
         if (test[i] != ref[i] || test.at(i) != ref.at(i))
             std::abort();
+    size_t iterated = 0;
+    for (auto i = test.begin(), end = test.end(); i != end; ++i, ++iterated)
+        if (iterated >= ref.size() || *i != ref[iterated])
+            std::abort();
+    if (iterated != ref.size())
+        std::abort();
     auto data = test.data();
     if (data.size() != ref.size())
         std::abort();
@@ -45,6 +51,12 @@ static void check(const std::u32string &ref, const F::string<> &test)
     for (size_t i = 0; i < ref.size(); i++)
         if (test[i] != ref[i] || test.at(i) != ref.at(i))
             std::abort();
+    size_t iterated = 0;
+    for (auto i = test.begin(), end = test.end(); i != end; ++i, ++iterated)
+        if (iterated >= ref.size() || *i != ref[iterated])
+            std::abort();
+    if (iterated != ref.size())
+        std::abort();
 }
 
 static void check(const std::map<int, int> &ref, const F::map<int, int> &test)
@@ -57,6 +69,11 @@ static void check(const std::map<int, int> &ref, const F::map<int, int> &test)
     }
     for (const auto &entry: ref)
         if (!test.contains(entry.first) || test.at(entry.first) != entry.second) std::abort();
+    auto expected = ref.begin();
+    for (auto i = test.begin(), end = test.end(); i != end; ++i, ++expected)
+        if (expected == ref.end() || (*i).first != expected->first || (*i).second != expected->second)
+            std::abort();
+    if (expected != ref.end()) std::abort();
 }
 
 int main(int argc, char **argv)
@@ -96,7 +113,7 @@ int main(int argc, char **argv)
         current_round = i;
         std::vector<int> old_ref = ref;
         F::vector<int> snapshot = test;
-        size_t op = std::rand() % 11;
+        size_t op = std::rand() % 14;
         current_op = op;
         size_t idx;
         int value = std::rand();
@@ -174,6 +191,37 @@ int main(int argc, char **argv)
                 ref.erase(ref.begin(), ref.begin() + idx);
                 test.right(idx);
                 break;
+            case 11:
+            {
+                if (ref.empty()) break;
+                idx = std::rand() % ref.size();
+                auto iterator = test.find(idx);
+                if (*iterator != ref[idx]) std::abort();
+                iterator.assign(value);
+                ref[idx] = value;
+                test = iterator.value();
+                break;
+            }
+            case 12:
+            {
+                if (ref.empty()) break;
+                idx = std::rand() % ref.size();
+                auto iterator = test.find(idx);
+                iterator.insert(value);
+                ref.insert(ref.begin() + idx, value);
+                test = iterator.value();
+                break;
+            }
+            case 13:
+            {
+                if (ref.empty()) break;
+                idx = std::rand() % ref.size();
+                auto iterator = test.find(idx);
+                iterator.erase();
+                ref.erase(ref.begin() + idx);
+                test = iterator.value();
+                break;
+            }
         }
         check(old_ref, snapshot);
         check(ref, test);

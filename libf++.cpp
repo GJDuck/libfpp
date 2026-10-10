@@ -4124,6 +4124,9 @@ static result<const ITR<S, M> *, const OBJECT<S> *> itr_restore(const ITR<S, M> 
                         s = single(u, max);
                         break;
                     }
+                    case TREE<S, M>::ELEMENT: case TREE<S, M>::TREE_2: case TREE<S, M>::TREE_3:
+                        s = reinterpret_cast<const SEQ<S, M> *>(obj);
+                        break;
                     case SEQ<S, M>::DEEP:
                     {
                         switch (path)
@@ -4248,6 +4251,9 @@ static const ITR<S, M> *itr_move(const ITR<S, M> *i, const void *max = nullptr)
                 {
                     case SEQ<S, M>::SINGLE:
                         i = S::template allocate<ITR<S, M>>(s->t, 0, lo, pos, i);
+                        continue;
+                    case TREE<S, M>::ELEMENT: case TREE<S, M>::TREE_2: case TREE<S, M>::TREE_3:
+                        i = S::template allocate<ITR<S, M>>(reinterpret_cast<const TREE<S, M> *>(s), 0, lo, pos, i);
                         continue;
                     case SEQ<S, M>::DEEP:
                         if (pos - lo < slen(s->l))
@@ -4521,6 +4527,7 @@ static const ITR<S, M> *itr_insert(const ITR<S, M> *i, size_t slack, const void 
             switch (s->tag)
             {
                 case SEQ<S, M>::SINGLE:
+                case TREE<S, M>::ELEMENT: case TREE<S, M>::TREE_2: case TREE<S, M>::TREE_3:
                 {
                     r = insert(t, nullptr, idx, data, refcount);
                     if (r.b == nullptr)
@@ -4649,6 +4656,7 @@ static const ITR<S, M> *itr_insert(const ITR<S, M> *i, size_t slack, const void 
                 switch (s->tag)
                 {
                     case SEQ<S, M>::SINGLE:
+                    case TREE<S, M>::ELEMENT: case TREE<S, M>::TREE_2: case TREE<S, M>::TREE_3:
                     {
                         s = deep(dig(t), nil<S, M>(), dig(u));
                         const auto *j = S::template allocate<ITR<S, M>>(s, i->path, i->lo, pos, i->next, true);
@@ -4866,6 +4874,7 @@ static const ITR<S, M> *itr_erase(const ITR<S, M> *i, result<const TREE<S, M> *,
             switch (s->tag)
             {
                 case SEQ<S, M>::SINGLE:
+                case TREE<S, M>::ELEMENT: case TREE<S, M>::TREE_2: case TREE<S, M>::TREE_3:
                     r = erase(t, nullptr, idx);
                     if (r.a != nullptr)
                     {
@@ -4948,6 +4957,7 @@ static const ITR<S, M> *itr_erase(const ITR<S, M> *i, result<const TREE<S, M> *,
                 switch (s->tag)
                 {
                     case SEQ<S, M>::SINGLE:
+                    case TREE<S, M>::ELEMENT: case TREE<S, M>::TREE_2: case TREE<S, M>::TREE_3:
                         m = nil<S, M>();
                         break;
                     case SEQ<S, M>::DEEP:
@@ -5157,6 +5167,7 @@ static result<const ITR<S, M> *, const ITR<S, M> *> itr_split(const ITR<S, M> *i
         switch (s->tag)
         {
             case SEQ<S, M>::SINGLE:
+            case TREE<S, M>::ELEMENT: case TREE<S, M>::TREE_2: case TREE<S, M>::TREE_3:
                 if (l) sl = nil<S, M>();
                 if (r) sr = nil<S, M>();
                 break;
@@ -5718,8 +5729,7 @@ const UTF8_SEQ<S> *utf8_push_back(const UTF8_SEQ<S> *s, const char *cstr, const 
     const char *cptr = cstr;
     if (s->tag != UTF8_SEQ<S>::NIL)
     {
-        const UTF8_DIG<S> *d = s->r;
-        const UTF8_TREE<S> *t = d->t[d->tag];
+        const UTF8_TREE<S> *t = INTERNAL<S>::template seq_back<STR>(s);
         const char *cend = cstr + (UTF8_TREE<S>::STR_SIZE - t->len);
         cend = (cend > cmax? cmax: cend);
         size_t clen, cnum = 0;
@@ -5778,8 +5788,7 @@ const UTF8_SEQ<S> *utf8_push_front(const UTF8_SEQ<S> *s, const char *cstr, const
     const char *cptr = cend;
     if (s->tag != UTF8_SEQ<S>::NIL)
     {
-        const UTF8_DIG<S> *d = s->l;
-        const UTF8_TREE<S> *t = d->t[0];
+        const UTF8_TREE<S> *t = INTERNAL<S>::template seq_front<STR>(s);
         const char *cbegin = cend - (UTF8_TREE<S>::STR_SIZE - t->len);
         cbegin = (cbegin < cstr? cstr: cbegin);
         size_t clen, cnum = 0;
