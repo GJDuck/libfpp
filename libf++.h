@@ -308,7 +308,7 @@ struct TREE : OBJECT<S>
 {
     enum TAG : size_t
     {
-        ELEMENT,
+        ELEMENT = 5,
         TREE_2,
         TREE_3,
     };
@@ -555,6 +555,9 @@ struct SEQ : OBJECT<S>
         SINGLE,
         NIL,
         DEEP,
+        ELEMENT = 5,
+        TREE_2,
+        TREE_3
     };
 
     TAG tag:TAG_BITS;
@@ -609,6 +612,14 @@ struct SEQ : OBJECT<S>
     }
     void deref() const
     {
+        switch (tag)
+        {
+            case TREE<S, M>::ELEMENT: case TREE<S, M>::TREE_2: case TREE<S, M>::TREE_3:
+                reinterpret_cast<const TREE<S, M> *>(this)->deref();
+                return;
+            default:
+                break;
+        }
         if (LIBFPP_UNLIKELY(OBJECT<S>::deref()))
         {
             auto *self = const_cast<SEQ<S, M> *>(this);
@@ -618,6 +629,14 @@ struct SEQ : OBJECT<S>
     }
     void gc() const
     {
+        switch (tag)
+        {
+            case TREE<S, M>::ELEMENT: case TREE<S, M>::TREE_2: case TREE<S, M>::TREE_3:
+                reinterpret_cast<const TREE<S, M> *>(this)->gc();
+                return;
+            default:
+                break;
+        }
         auto *self = const_cast<SEQ<S, M> *>(this);
         if (self->refcount != 0)
             return;
@@ -627,6 +646,14 @@ struct SEQ : OBJECT<S>
     template <typename T>
     void DEREF() const
     {
+        switch (tag)
+        {
+            case TREE<S, M>::ELEMENT: case TREE<S, M>::TREE_2: case TREE<S, M>::TREE_3:
+                reinterpret_cast<const TREE<S, M> *>(this)->template DEREF<T>();
+                return;
+            default:
+                break;
+        }
         if (LIBFPP_LIKELY(!OBJECT<S>::deref()))
             return;
         switch (tag)
@@ -648,6 +675,14 @@ struct SEQ : OBJECT<S>
 
     void dump(void (*dumper)(const TREE<S, M> *, FILE *), unsigned indent, FILE *stream = stderr, void (*mdumper)(const M *, FILE *) = nullptr) const
     {
+        switch (tag)
+        {
+            case TREE<S, M>::ELEMENT: case TREE<S, M>::TREE_2: case TREE<S, M>::TREE_3:
+                reinterpret_cast<const TREE<S, M> *>(this)->dump(dumper, indent, stream, mdumper);
+                return;
+            default:
+                break;
+        }
         fputc('\n', stream);
         for (unsigned i = 0; i < indent; i++)
             fputc(' ', stream);
@@ -1360,12 +1395,36 @@ struct INTERNAL
     template <typename M = EMPTY>
     static LIBFPP_PURE LIBFPP_INLINE const TREE<S, M> *seq_back(const SEQ<S, M> *s)
     {
+        switch (s->tag)
+        {
+            case TREE<S, M>::ELEMENT: case TREE<S, M>::TREE_2: case TREE<S, M>::TREE_3:
+            {
+                const TREE<S, M> *t = reinterpret_cast<const TREE<S, M> *>(s);
+                while (t->tag != TREE<S, M>::ELEMENT)
+                    t = t->t[t->tag == TREE<S, M>::TREE_2? 1: 2];
+                return t;
+            }
+            default:
+                break;
+        }
         const DIG<S, M> *d = s->r;
         return d->t[d->tag];
     }
     template <typename M = EMPTY>
     static LIBFPP_PURE LIBFPP_INLINE const TREE<S, M> *seq_front(const SEQ<S, M> *s)
     {
+        switch (s->tag)
+        {
+            case TREE<S, M>::ELEMENT: case TREE<S, M>::TREE_2: case TREE<S, M>::TREE_3:
+            {
+                const TREE<S, M> *t = reinterpret_cast<const TREE<S, M> *>(s);
+                while (t->tag != TREE<S, M>::ELEMENT)
+                    t = t->t[0];
+                return t;
+            }
+            default:
+                break;
+        }
         const DIG<S, M> *d = s->l;
         return d->t[0];
     }
@@ -1391,6 +1450,23 @@ struct INTERNAL
     template <typename T>
     static LIBFPP_PURE const SEQ<S> *seq_fast_push_back(const SEQ<S> *s, const T &val)
     {
+        switch (s->tag)
+        {
+            case TREE<S>::ELEMENT:
+            {
+                const TREE<S> *t = reinterpret_cast<const TREE<S> *>(s);
+                if (LIBFPP_LIKELY(t->refcount == 1 && !t->template full<T>()))
+                {
+                    auto *u = const_cast<TREE<S> *>(t);
+                    new (u->template at<T>(u->len)) T(val);
+                    u->len++;
+                    return s;
+                }
+                return INTERNAL<S>::seq_slow_push_back(s, t, val);
+            }
+            default:
+                break;
+        }
         const DIG<S>  *d = s->r;
         const TREE<S> *t = d->t[d->tag];
         size_t refcount = (s->refcount | d->refcount | t->refcount);
