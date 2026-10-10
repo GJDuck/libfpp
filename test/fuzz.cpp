@@ -160,9 +160,18 @@ char32_t random_codepoint()
 /*
  * Main.
  */
-int main(int argc, char **argv) {
+int main(int argc, char **argv)
+{
+    int NUM_ITERATIONS = 10000000;
+    int SEED = 0;
     if (argv[1] != nullptr)
-        std::srand(atoi(argv[1]));
+    {
+        NUM_ITERATIONS = atoi(argv[1]);
+        if (argv[2] != nullptr)
+            SEED = atoi(argv[2]);
+    }
+    if (SEED != 0)
+        std::srand(SEED);
     else
         std::srand(static_cast<unsigned int>(std::time(nullptr)));
 
@@ -172,7 +181,6 @@ int main(int argc, char **argv) {
     std::map<int, int> mref;
     F::map<int, int> mtest;
 
-    const int NUM_ITERATIONS = 10000000;
     const size_t MAX = 8192;
 
     for (int i = 0; i < NUM_ITERATIONS; ++i) {
