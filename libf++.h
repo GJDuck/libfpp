@@ -1725,7 +1725,7 @@ struct INTERNAL
             else
                 LIBFPP_PANIC("bad ordering");
         }
-        if (hi < ssize_t(t->len) || u == nullptr) return {t, u};
+        if (lo < ssize_t(t->len) || u == nullptr) return {t, u};
         lo = 0, hi = u->len - 1;
         while (lo <= hi)
         {
