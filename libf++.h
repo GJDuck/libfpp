@@ -757,7 +757,12 @@ struct MIN
         ;
     }
     template <typename S>
-    MIN(const SEQ<S, MIN> *s, const void *arg = nullptr) : min(get_min(s)), max(arg == nullptr? nullptr: init_max(s, arg))
+    MIN(const SEQ<S, MIN> *s, const void *arg = nullptr) :
+        min(s->tag == SEQ<S, MIN>::NIL? nullptr:
+            s->tag == SEQ<S, MIN>::SINGLE? get_min(s->t):
+            s->tag == SEQ<S, MIN>::DEEP? get_min(s->l):
+            get_min(reinterpret_cast<const TREE<S, MIN> *>(s))),
+        max(arg == nullptr? nullptr: init_max(s, arg))
     {
         ;
     }
@@ -1870,7 +1875,7 @@ struct INTERNAL
             else
                 LIBFPP_PANIC("bad ordering");
         }
-        if (hi < ssize_t(t->len) || u == nullptr) return {t, u};
+        if (lo < ssize_t(t->len) || u == nullptr) return {t, u};
         lo = 0, hi = u->len - 1;
         while (lo <= hi)
         {

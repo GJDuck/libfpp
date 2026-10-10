@@ -3897,13 +3897,13 @@ static const DIG<S, MIN> *dig_erase(const DIG<S, MIN> *d, EraseSearchInfo<S> *in
                 if (info->go_right(d->t[1]))
                 {
                     auto r = info->erase(d->t[1], d->t[2], info->key);
-                    if (!info->erased) return d;
                     info->erased  = (r.a != d->t[1] || r.b != d->t[2]);
+                    if (!info->erased) return d;
                     return (r.b == nullptr? dig(d->t[0], r.a, d->t[3], max): dig(d->t[0], r.a, r.b, d->t[3], max));
                 }
                 auto r = info->erase(d->t[0], d->t[1], info->key);
-                if (!info->erased) return d;
                 info->erased = (r.a != d->t[0] || r.b != d->t[1]);
+                if (!info->erased) return d;
                 return (r.b == nullptr? dig(r.a, d->t[2], d->t[3], max): dig(r.a, r.b, d->t[2], d->t[3], max));
             }
             if (info->go_right(d->t[2]))

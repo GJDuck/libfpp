@@ -1,5 +1,6 @@
 #include <cstdlib>
 #include <cstdio>
+#include <map>
 #include <string>
 #include <vector>
 
@@ -44,6 +45,18 @@ static void check(const std::u32string &ref, const F::string<> &test)
     for (size_t i = 0; i < ref.size(); i++)
         if (test[i] != ref[i] || test.at(i) != ref.at(i))
             std::abort();
+}
+
+static void check(const std::map<int, int> &ref, const F::map<int, int> &test)
+{
+    if (test.size() != ref.size() || test.empty() != ref.empty()) std::abort();
+    if (const char *err = test.verify())
+    {
+        std::fprintf(stderr, "map verify failed at round %zu op %zu: %s\n", current_round, current_op, err);
+        std::abort();
+    }
+    for (const auto &entry: ref)
+        if (!test.contains(entry.first) || test.at(entry.first) != entry.second) std::abort();
 }
 
 int main(int argc, char **argv)
@@ -215,6 +228,40 @@ int main(int argc, char **argv)
                 break;
         }
         check(str_ref, str_test);
+    }
+
+    std::map<int, int> map_ref;
+    F::map<int, int> map_test;
+    for (size_t i = 0; i < rounds; i++)
+    {
+        current_round = i;
+        current_op = std::rand() % 4;
+        int key = std::rand() % 200;
+        int value = std::rand();
+        if (current_op == 0)
+        {
+            bool inserted = map_ref.insert({key, value}).second;
+            if (map_test.insert({key, value}) != inserted) std::abort();
+        }
+        else if (current_op == 1)
+        {
+            map_ref[key] = value;
+            map_test.assign({key, value});
+        }
+        else if (current_op == 2 && map_test.contains(key) != (map_ref.count(key) != 0))
+            std::abort();
+        else if (current_op == 3)
+        {
+            bool expected = (map_ref.erase(key) != 0);
+            bool actual = map_test.erase(key);
+            if (actual != expected)
+            {
+                std::fprintf(stderr, "map erase mismatch at round %zu key %d: expected %d, got %d\n",
+                    current_round, key, expected, actual);
+                std::abort();
+            }
+        }
+        check(map_ref, map_test);
     }
 
     std::puts("fuzz2 completed");
