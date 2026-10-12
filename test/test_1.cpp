@@ -26,6 +26,8 @@
 
 #include <vector>
 #include <map>
+#include <algorithm>
+#include <random>
 
 #include <cassert>
 #include <cstdio>
@@ -179,6 +181,8 @@ int main(int argc, char **argv)
             putchar('\n');
             puts("---libf++---");
             int N = 1000000;
+            std::vector<int> linear_keys;
+            std::vector<int> random_keys;
             {
                 srand(123456);
                 F::map<int, int> m;
@@ -194,6 +198,29 @@ int main(int argc, char **argv)
                 t1 = gettime();
                 printf("time [scan ] = %zums\n", t1 - t0);
                 printf("size = %zu\n", m.size());
+                printf("sum = %zu\n", sum);
+
+                linear_keys.reserve(m.size());
+                for (const auto x: m)
+                    linear_keys.push_back(x.first);
+                random_keys = linear_keys;
+                std::mt19937 random(123456);
+                std::shuffle(random_keys.begin(), random_keys.end(), random);
+
+                sum = 0;
+                t0 = gettime();
+                for (int key: linear_keys)
+                    sum += m.at(key);
+                t1 = gettime();
+                printf("time [search linear] = %zums\n", t1 - t0);
+                printf("sum = %zu\n", sum);
+
+                sum = 0;
+                t0 = gettime();
+                for (int key: random_keys)
+                    sum += m.at(key);
+                t1 = gettime();
+                printf("time [search random] = %zums\n", t1 - t0);
                 printf("sum = %zu\n", sum);
                 sum = 0;
             }
@@ -213,6 +240,22 @@ int main(int argc, char **argv)
                 t1 = gettime();
                 printf("time [scan ] = %zums\n", t1 - t0);
                 printf("size = %zu\n", m.size());
+                printf("sum = %zu\n", sum);
+
+                sum = 0;
+                t0 = gettime();
+                for (int key: linear_keys)
+                    sum += m.at(key);
+                t1 = gettime();
+                printf("time [search linear] = %zums\n", t1 - t0);
+                printf("sum = %zu\n", sum);
+
+                sum = 0;
+                t0 = gettime();
+                for (int key: random_keys)
+                    sum += m.at(key);
+                t1 = gettime();
+                printf("time [search random] = %zums\n", t1 - t0);
                 printf("sum = %zu\n", sum);
             }
         }
