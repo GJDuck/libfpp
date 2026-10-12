@@ -1300,7 +1300,94 @@ struct INTERNAL
     static LIBFPP_PURE result<const TREE<S, MIN> *, size_t> seq_get(const SEQ<S, MIN> *s, size_t idx);
     static LIBFPP_PURE char32_t str_get(const UTF8_SEQ<S> *s, size_t idx);
     static LIBFPP_PURE const SEQ<S> *seq_assign(const SEQ<S> *s, size_t idx, const TREE<S> *(*set)(const TREE<S> *, size_t, const void *), const void *data);
-    static LIBFPP_PURE const void *seq_search(const SEQ<S, MIN> *s, const void *key, order (*compare)(const void *, const void *));
+    template <order (*COMPARE)(const void *, const void *)>
+    struct SeqSearch
+    {
+        static bool go_right(const TREE<S, MIN> *t, const void *key)
+        {
+            return (COMPARE(key, MIN::get_min(t)) >= 0);
+        }
+        static bool go_right(const DIG<S, MIN> *d, const void *key)
+        {
+            return (COMPARE(key, MIN::get_min(d)) >= 0);
+        }
+        static bool go_right(const SEQ<S, MIN> *s, const void *key)
+        {
+            if (s->tag == SEQ<S, MIN>::NIL) return false;
+            return (COMPARE(key, MIN::get_min(s)) >= 0);
+        }
+        static LIBFPP_PURE const void *tree(const TREE<S, MIN> *t, const void *key)
+        {
+            switch (t->tag)
+            {
+                case TREE<S, MIN>::ELEMENT:
+                {
+                    ssize_t lo = 0, hi = t->len - 1;
+                    while (lo <= hi)
+                    {
+                        ssize_t mid = lo + (hi - lo) / 2;
+                        const void *elem = t->at(mid);
+                        order cmp = COMPARE(key, elem);
+                        if (cmp < 0)
+                            hi = mid - 1;
+                        else if (cmp > 0)
+                            lo = mid + 1;
+                        else
+                            return elem;
+                    }
+                    return nullptr;
+                }
+                case TREE<S, MIN>::TREE_3:
+                    if (go_right(t->t[2], key))
+                        return tree(t->t[2], key);
+                    /* Fallthrough */
+                case TREE<S, MIN>::TREE_2:
+                    return (go_right(t->t[1], key)? tree(t->t[1], key): tree(t->t[0], key));
+            }
+            LIBFPP_UNREACHABLE();
+        }
+        static LIBFPP_PURE const void *dig(const DIG<S, MIN> *d, const void *key)
+        {
+            switch (d->tag)
+            {
+                case DIG<S, MIN>::DIG_1:
+                    return tree(d->t[0], key);
+                case DIG<S, MIN>::DIG_3:
+                    if (go_right(d->t[2], key))
+                        return tree(d->t[2], key);
+                    /* Fallthrough */
+                case DIG<S, MIN>::DIG_2:
+                    return (go_right(d->t[1], key)? tree(d->t[1], key): tree(d->t[0], key));
+                case DIG<S, MIN>::DIG_4:
+                    if (go_right(d->t[2], key))
+                        return (go_right(d->t[3], key)? tree(d->t[3], key): tree(d->t[2], key));
+                    return (go_right(d->t[1], key)? tree(d->t[1], key): tree(d->t[0], key));
+            }
+            LIBFPP_UNREACHABLE();
+        }
+        static LIBFPP_PURE const void *seq(const SEQ<S, MIN> *s, const void *key)
+        {
+            switch (s->tag)
+            {
+                case SEQ<S, MIN>::NIL:
+                    return nullptr;
+                case TREE<S, MIN>::ELEMENT: case TREE<S, MIN>::TREE_2: case TREE<S, MIN>::TREE_3:
+                    return tree(reinterpret_cast<const TREE<S, MIN> *>(s), key);
+                case SEQ<S, MIN>::DEEP:
+                    if (go_right(s->r, key))
+                        return dig(s->r, key);
+                    if (go_right(s->m, key))
+                        return seq(s->m, key);
+                    return dig(s->l, key);
+            }
+            LIBFPP_UNREACHABLE();
+        }
+    };
+    template <order (*COMPARE)(const void *, const void *)>
+    static LIBFPP_PURE const void *seq_search(const SEQ<S, MIN> *s, const void *key)
+    {
+        return SeqSearch<COMPARE>::seq(s, key);
+    }
     static LIBFPP_PURE ssize_t seq_find(const SEQ<S, MIN> *s, const void *key, order (*compare)(const void *, const void *));
     static LIBFPP_PURE ssize_t seq_multi_find(const SEQ<S, MIN> *s, const void *key, order (*compare)(const void *, const void *));
     static LIBFPP_PURE const SEQ<S> *seq_push_back(const SEQ<S> *s, const TREE<S> *t);
@@ -3173,7 +3260,7 @@ public:
      */
     LIBFPP_PURE optional<T, Cmp, S> search(const T &val) const
     {
-        const auto *r = INTERNAL<S>::seq_search(s, reinterpret_cast<const void *>(&val), COMPARE);
+        const auto *r = INTERNAL<S>::template seq_search<COMPARE>(s, reinterpret_cast<const void *>(&val));
         if (r == nullptr) return optional<T, Cmp, S>();
         return optional<T, Cmp, S>(*reinterpret_cast<const T *>(r));
     }
@@ -3184,7 +3271,7 @@ public:
      */
     LIBFPP_PURE bool contains(const T &val) const
     {
-        return (INTERNAL<S>::seq_search(s, reinterpret_cast<const void *>(&val), COMPARE) != nullptr);
+        return (INTERNAL<S>::template seq_search<COMPARE>(s, reinterpret_cast<const void *>(&val)) != nullptr);
     }
 
     /**
@@ -3193,7 +3280,7 @@ public:
      */
     LIBFPP_PURE T at(const T &val) const
     {
-        const auto *r = INTERNAL<S>::seq_search(s, reinterpret_cast<const void *>(&val), COMPARE);
+        const auto *r = INTERNAL<S>::template seq_search<COMPARE>(s, reinterpret_cast<const void *>(&val));
         if (r == nullptr) LIBFPP_PANIC("set element not found");
         return *reinterpret_cast<const T *>(r);
     }
@@ -3824,7 +3911,7 @@ public:
      */
     LIBFPP_PURE optional<V, cmp<V>, S> search(const K &k) const
     {
-        const auto *r = INTERNAL<S>::seq_search(s, reinterpret_cast<const void *>(&k), COMPARE);
+        const auto *r = INTERNAL<S>::template seq_search<COMPARE>(s, reinterpret_cast<const void *>(&k));
         if (r == nullptr) return optional<V, cmp<V>, S>();
         return optional<V, cmp<V>, S>(reinterpret_cast<const pair<K, V> *>(r)->second);
     }
@@ -3835,7 +3922,7 @@ public:
      */
     LIBFPP_PURE bool contains(const K &k) const
     {
-        return (INTERNAL<S>::seq_search(s, reinterpret_cast<const void *>(&k), COMPARE) != nullptr);
+        return (INTERNAL<S>::template seq_search<COMPARE>(s, reinterpret_cast<const void *>(&k)) != nullptr);
     }
 
     /**
@@ -3844,7 +3931,7 @@ public:
      */
     LIBFPP_PURE V at(const K &k) const
     {
-        const auto *r = INTERNAL<S>::seq_search(s, reinterpret_cast<const void *>(&k), COMPARE);
+        const auto *r = INTERNAL<S>::template seq_search<COMPARE>(s, reinterpret_cast<const void *>(&k));
         if (r == nullptr) LIBFPP_PANIC("key not found");
         return reinterpret_cast<const pair<K, V> *>(r)->second;
     }
@@ -3855,7 +3942,7 @@ public:
      */
     LIBFPP_PURE V operator[](const K &k) const
     {
-        const auto *r = INTERNAL<S>::seq_search(s, reinterpret_cast<const void *>(&k), COMPARE);
+        const auto *r = INTERNAL<S>::template seq_search<COMPARE>(s, reinterpret_cast<const void *>(&k));
         if (r == nullptr) LIBFPP_PANIC("key not found");
         return reinterpret_cast<const pair<K, V> *>(r)->second;
     }
@@ -4072,7 +4159,7 @@ public:
      */
     LIBFPP_PURE optional<V, cmp<V>, S> search(const K &k) const
     {
-        const auto *r = INTERNAL<S>::seq_search(s, reinterpret_cast<const void *>(&k), COMPARE);
+        const auto *r = INTERNAL<S>::template seq_search<COMPARE>(s, reinterpret_cast<const void *>(&k));
         if (r == nullptr) return optional<V, cmp<V>, S>();
         return optional<V, cmp<V>, S>(reinterpret_cast<const pair<K, V> *>(r)->second);
     }
@@ -4083,7 +4170,7 @@ public:
      */
     LIBFPP_PURE bool contains(const K &k) const
     {
-        return (INTERNAL<S>::seq_search(s, reinterpret_cast<const void *>(&k), COMPARE) != nullptr);
+        return (INTERNAL<S>::template seq_search<COMPARE>(s, reinterpret_cast<const void *>(&k)) != nullptr);
     }
 
     /**
@@ -4092,7 +4179,7 @@ public:
      */
     LIBFPP_PURE V at(const K &k) const
     {
-        const auto *r = INTERNAL<S>::seq_search(s, reinterpret_cast<const void *>(&k), COMPARE);
+        const auto *r = INTERNAL<S>::template seq_search<COMPARE>(s, reinterpret_cast<const void *>(&k));
         if (r == nullptr) LIBFPP_PANIC("key not found");
         return reinterpret_cast<const pair<K, V> *>(r)->second;
     }
@@ -4103,7 +4190,7 @@ public:
      */
     LIBFPP_PURE V operator[](const K &k) const
     {
-        const auto *r = INTERNAL<S>::seq_search(s, reinterpret_cast<const void *>(&k), COMPARE);
+        const auto *r = INTERNAL<S>::template seq_search<COMPARE>(s, reinterpret_cast<const void *>(&k));
         if (r == nullptr) LIBFPP_PANIC("key not found");
         return reinterpret_cast<const pair<K, V> *>(r)->second;
     }

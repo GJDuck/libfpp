@@ -210,7 +210,7 @@ int main(int argc, char **argv)
         if (std::rand() % 100 == 0)
             old = test;
 
-        switch (std::rand() % 33) {
+        switch (std::rand() % 34) {
             case 0: case 1: case 2: case 3: case 4: case 5: // Insert
                 fprintf(stderr, "%d str.%sinsert%s(%zu,0x%x)\n", i, F::GREEN, F::OFF, pos, ch);
                 ref.insert(ref.begin() + pos, ch);
@@ -392,6 +392,33 @@ int main(int argc, char **argv)
                 fprintf(stderr, "%d map.%sassign%s({%d,%d})\n", i, F::YELLOW, F::OFF, key, val);
                 mref[key] = val;
                 mtest.assign({key, val});
+                break;
+            }
+            case 33:
+            {
+                int key;
+                if (!mref.empty() && std::rand() % 2 == 0)
+                {
+                    auto j = mref.begin();
+                    std::advance(j, std::rand() % mref.size());
+                    key = j->first;
+                }
+                else
+                    key = std::rand() % 8192;
+                fprintf(stderr, "%d map.%ssearch%s(%d)\n", i, F::YELLOW, F::OFF, key);
+                auto ref_result = mref.find(key);
+                auto test_result = mtest.search(key);
+                if ((ref_result == mref.end()) != !test_result)
+                {
+                    fprintf(stderr, "map.search(%d) presence mismatch\n", key);
+                    abort();
+                }
+                if (ref_result != mref.end() && ref_result->second != *test_result)
+                {
+                    fprintf(stderr, "map.search(%d): ref = %d, test = %d\n",
+                        key, ref_result->second, *test_result);
+                    abort();
+                }
                 break;
             }
         }
